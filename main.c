@@ -48,7 +48,7 @@ u32 decompose_addr(int marker_len) {
 
     for(int i = 0; i < str_idx; ++i){
         c = str[i];
-        printf("[%c %x]\n",c,c);
+       // printf("[%c %x]\n",c,c);
 
         addr+=  (c - (c > 0x39 ? 0x37 : 0x30))* pow(16,str_idx-(i+1));
     }

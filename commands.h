@@ -15,5 +15,5 @@ void send_cmd(u8 cmd);
 u8 read_io();
 void read_id();
 void read_page(u32 addr);
-void write_page(u32 addr, u8 *buf, size_t len, bool test);
+void write_page(u32 addr, u8 *buf, size_t len, bool test, u8 test_val);
 void erase_block(u32 addr);

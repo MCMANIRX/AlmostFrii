@@ -38,15 +38,18 @@ bool marker_found(char *marker) {
 }
 
 
-u32 decompose_addr() {
+u32 decompose_addr(int marker_len) {
 
     char c = '\0';
 
     u32 addr = 0;
-    str_idx-=2;
+    str_idx-=(2+marker_len);
+
 
     for(int i = 0; i < str_idx; ++i){
         c = str[i];
+        printf("[%c %x]\n",c,c);
+
         addr+=  (c - (c > 0x39 ? 0x37 : 0x30))* pow(16,str_idx-(i+1));
     }
 
@@ -54,7 +57,7 @@ u32 decompose_addr() {
 }
 
 
-
+u8 test_val = 0; // for writing random to chip
 
 
 
@@ -70,17 +73,23 @@ void console() {
 
             if(in == 0xd){
 
-                if(marker_found("p"))
-                    read_page((decompose_addr()&0x3ffff));   // page read
+                if(marker_found("rp"))
+                    read_page((decompose_addr(1)&0x3ffff));   // page read
 
-                else if(marker_found("e"))
-                    erase_block((decompose_addr()&0x3ffff)); // block erase (takes row address only)
+                else if(marker_found("be"))
+                   // printf("erasing block %d.\n",(decompose_addr(1)&0xFFF));
+                    erase_block((decompose_addr(1)&0xfff)); // block erase (takes row address only)
+                
+                else if(marker_found("st")){
+                    test_val = (u8)(decompose_addr(1)&0xff); // test pattern set
+                    printf("set test pattern to \"%x.\"\n",test_val);
+                }
 
-                else if(marker_found("t"))
-                    write_page((decompose_addr()&0x3ffff),NULL,PAGE_SIZE,true); // test pattern write
+                else if(marker_found("wt"))
+                    write_page((decompose_addr(1)&0x3ffff),NULL,PAGE_SIZE,true,test_val); // test pattern write
 
-                else if(marker_found("b"))
-                    write_page((decompose_addr()&0x3ffff),NULL,PAGE_SIZE,false); // buffer write
+                else if(marker_found("wp"))
+                    write_page((decompose_addr(1)&0x3ffff),NULL,PAGE_SIZE,false,0x0); // buffer write
 
                 else if(marker_found("id")) // id read
                     read_id();

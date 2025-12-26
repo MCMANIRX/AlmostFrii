@@ -171,14 +171,14 @@ static inline void send_row_addr(u8 * frames) {
 }
 
 
-static inline void send_data(u8 * frames, size_t len, bool test) {
+static inline void send_data(u8 * frames, size_t len, bool test, u8 test_val) {
     
     gpio_clr_mask(io_mask);
 
     if(test)
 
         for(size_t i = 0; i < len; ++i) {
-            gpio_put_masked(io_mask,(((u32)0xae)<<2));
+            gpio_put_masked(io_mask,(((u32)test_val)<<2));
             gpio_put(WE_,0);
             wait_16();
             gpio_put(WE_,1);
@@ -303,7 +303,7 @@ void read_page(u32 addr) {
 
 }
 
-void write_page(u32 addr, u8 *buf, size_t len, bool test) {
+void write_page(u32 addr, u8 *buf, size_t len, bool test, u8 test_val) {
 
     gpio_put(WP_,1);
     gpio_put(RE_,1);
@@ -322,7 +322,7 @@ void write_page(u32 addr, u8 *buf, size_t len, bool test) {
     gpio_put(ALE,0);
     wait_100();
 
-    send_data(buf,len,test);
+    send_data(buf,len,test,test_val);
 
 
     send_cmd(CONFIRM_PROGRAM);

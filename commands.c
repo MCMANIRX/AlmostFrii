@@ -1,8 +1,12 @@
 #include "io.h"
 #include "commands.h"
 #include <stdio.h>
+#include "mbedtls/sha256.h"
 #define NUM_GPIO 8
-const u32 io_mask = 0xff << 2;
+const u32 io_mask = (0xff << 2);
+
+
+
 
 #define IO_OUT() gpio_set_dir_masked(io_mask,io_mask);
 #define IO_IN()  gpio_set_dir_masked(io_mask,0);
@@ -18,7 +22,13 @@ const u32 io_mask = 0xff << 2;
 #define CONFIRM_ERASE 0xd0
 #define READ1 0x30
 
-#define PAGE_SIZE 2048 + 64
+#define PAGE_SIZE 2112
+
+
+u8 SHA[32] = {0};
+/* internal ptr to str buf */
+u8 *pageBuffer;
+ int buffer_bytes=0;
 
 
 static u8 status = 0;
@@ -328,13 +338,13 @@ void write_page(u32 addr, u8 *buf, size_t len, bool test, u8 test_val) {
     send_cmd(CONFIRM_PROGRAM);
     wait_100();
 
-    printf("writing");
-    while(!gpio_get(RB))
-        printf(".");
-    printf("done.\n");
+    //puts("writing");
+    while(!gpio_get(RB));
+    //    puts(".");
+    //puts("done.\n");
 
     if(status&1)
-        printf("WERR");
+        puts("WERR");
 
 
     gpio_put(CE_,1);
@@ -342,6 +352,7 @@ void write_page(u32 addr, u8 *buf, size_t len, bool test, u8 test_val) {
 }
 
 void erase_block(u32 addr) {
+    addr<<=6;
 
 
     gpio_put(WP_,1);
@@ -370,7 +381,102 @@ void erase_block(u32 addr) {
     read_status();
 
     if(status&1)
-        printf("EERR");
+        puts("EERR");
+
+
+}
+
+void erase_chip() {
+
+    for(int i = 0; i < 0x1000; ++i){
+        printf("block %d: ",i);
+        erase_block(i&0xfff);
+    }
+    printf("erase complete.");
+}
+
+
+void read_page_SHA(u32 addr) {
+
+    gpio_put(RE_,1);
+    gpio_put(ALE,0);
+    gpio_put(CE_,0);
+    IO_OUT();
+
+
+    u8 addr_frames[5] = {0};
+    cache_addr(addr,addr_frames);
+
+    send_cmd(START_READ);
+    
+
+    hy_put(ALE,1);
+    send_addr(addr_frames);
+
+    gpio_put(ALE,0);
+    send_cmd(READ1);
+    IO_IN();
+
+
+    while(!gpio_get(RB));
+
+    for(int i = 0; i < PAGE_SIZE; ++i) {
+    
+        gpio_put(RE_,0);
+        wait_16();
+        pageBuffer[i] = read_io();
+        gpio_put(RE_,1);
+        wait_16();
+
+   }
+
+    gpio_put(CE_,1);
+
+
+
+}
+
+void get_block_SHA(u32 addr) {
+    addr<<=6;
+    u32 vaddr = addr;
+    mbedtls_sha256_context ctx;
+    mbedtls_sha256_init(&ctx);
+    mbedtls_sha256_starts(&ctx,false);
+
+    for(int i = 0; i < 0x40; ++i){
+        read_page_SHA(vaddr++);
+        mbedtls_sha256_update(&ctx,pageBuffer,PAGE_SIZE);
+    }
+        mbedtls_sha256_finish(&ctx,SHA);
+
+
+    // output
+    printf("SHA: ");
+    for(int i =0; i < 32; ++i)
+        printf("%02x",SHA[i]);
+    //printf("\nblock:%x (row: 0x%x->0x%x) (linear: 0x%x->0x%x)",addr,addr,vaddr,addr*PAGE_SIZE,vaddr*PAGE_SIZE);
+    printf("\n");
+
+
+}
+
+void get_page_SHA(u32 addr) {
+    u32 vaddr = addr;
+    mbedtls_sha256_context ctx;
+    mbedtls_sha256_init(&ctx);
+    mbedtls_sha256_starts(&ctx,false);
+
+    read_page_SHA(vaddr++);
+    mbedtls_sha256_update(&ctx,pageBuffer,PAGE_SIZE);
+    mbedtls_sha256_finish(&ctx,SHA);
+
+
+    // output
+    printf("SHA: ");
+    for(int i =0; i < 32; ++i)
+        printf("%02x",SHA[i]);
+    //printf("\nblock:%x (row: 0x%x->0x%x) (linear: 0x%x->0x%x)",addr,addr,vaddr,addr*PAGE_SIZE,vaddr*PAGE_SIZE);
+    printf("\n");
 
 
 }

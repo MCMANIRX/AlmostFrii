@@ -13,8 +13,8 @@ clear = "clr\r\n"
 ser.write(clear.encode())
 time.sleep(0.5)
 last_time = time.time()
-addr = 0x0
-for i in range(0,64 * 4096):
+addr = -1
+for i in range(0,64):
 
 
     if(addr%(64)==0):
@@ -25,8 +25,7 @@ for i in range(0,64 * 4096):
 
 
     payload = '{:X}'.format(addr)
-    payload+='p' 
-    payload+='\r\n'   
+    payload+='$pageRead$msgEnd' 
     ser.write(payload.encode())
     
     byte_count = 0

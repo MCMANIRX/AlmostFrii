@@ -49,17 +49,16 @@ pico_enable_stdio_usb(wii-nand-interf 1)
 # Add the standard library to the build
 target_link_libraries(wii-nand-interf
         pico_stdlib
-        )
+        pico_mbedtls
+        pico_cyw43_arch_none
+
+                )
 
 # Add the standard include files to the build
 target_include_directories(wii-nand-interf PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
 )
 
-# Add any user requested libraries
-target_link_libraries(wii-nand-interf 
-        pico_cyw43_arch_none
-        )
 
 pico_add_extra_outputs(wii-nand-interf)
 

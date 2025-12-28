@@ -34,7 +34,7 @@ offset = 0x0
 BLOCKS = 4096
 RANGE = 0x40 * BLOCKS
 
-log.write("=====FILE WRITE=====")
+log.write("=====FILE WRITE=====\n")
 for i in range(0,RANGE):
 
 
@@ -145,7 +145,7 @@ for i in range(0,RANGE):
     offset+=1
     addr+=1'''
     
-log.write("=====SHA VERIFICATION=====")    
+log.write("=====SHA VERIFICATION=====\n")    
 addr = 0
 offset = 0 
 for i in range(0,BLOCKS):

@@ -1,7 +1,7 @@
 import serial
 import time
 import hashlib
-
+import pathlib
 PAGE_SIZE = 2112
 BLOCK_SIZE = 2112 * 64
 EOF = "$msgEnd"
@@ -9,12 +9,20 @@ EOF = "$msgEnd"
 sector = 0
 start_time = time.time()
 
-ser = serial.Serial("COM13", 115200,timeout=3)
+
+
+pathlib.Path("log").mkdir(parents=True, exist_ok=True)
+
+
 
 f = open('fwd.bin', 'rb')
+log = open('log/log-'+str(int(time.time()))+".txt", 'w')
 
 #clear = "clr\r\n"
 #ser.write(clear.encode())
+
+ser = serial.Serial("COM13", 115200,timeout=3)
+
 time.sleep(0.5)
 last_time = time.time()
 
@@ -26,15 +34,19 @@ offset = 0x0
 BLOCKS = 4096
 RANGE = 0x40 * BLOCKS
 
-
+log.write("=====FILE WRITE=====")
 for i in range(0,RANGE):
 
 
     if(addr%(0x40)==0):
 
-        sector+=1
-        print("writing block",sector,"(",addr*2112,"bytes,",(addr*2112 / 1E6),"MB), time =",time.time()-last_time,"seconds...")
+        update = (F"writing block {sector} ({addr*2112} bytes, {(addr*2112) / 1E6}MB), time = {time.time()-last_time} seconds...")
+        print(update)
+        log.write(update+"\n")
+
         last_time = time.time()
+        sector+=1
+
         
     # set address
     payload = ('{:X}'.format(addr)+"$pageWAddr"+EOF).encode()
@@ -54,10 +66,23 @@ for i in range(0,RANGE):
 
    # ser.write(payload)
     time_out = time.time()
-    while( 'wc' not in ser.readline().decode('utf-8') ):
+    while True:
+        line = ser.readline().decode('utf-8')
+        
         if time.time() > 1 +time_out:
-            print("ERROR: timeout on write ACK")
+            print(F"[{(time.time())}] ERROR: timeout on write ACK")
+            log.write(F"[{(time.time())}] ERROR: timeout on write ACK")
             quit()
+            
+        elif 'WERR' in line:
+            print(F"[{(time.time())}] ERROR: line write error")
+            log.write(F"[{(time.time())}] ERROR: line write error\n")
+            quit()
+            
+        elif 'wc' in line:
+              break
+
+
     print(F"page {addr}")
         
 
@@ -70,6 +95,22 @@ for i in range(0,RANGE):
     
     addr+=1
     offset+=1
+
+
+print("Completed writing.")
+log.write("Completed writing.\n")
+
+end_time = time.time()
+
+elapsed_time = end_time - start_time
+
+print(f"Start Time: {start_time}")
+print(f"End Time: {end_time}")
+print(f"Elapsed Time: {elapsed_time:.2f} seconds, {elapsed_time/3600.0:.2f} hours.")
+
+log.write(f"Start Time: {start_time}\n")
+log.write(f"End Time: {end_time}\n")
+log.write(f"Elapsed Time: {elapsed_time:.2f} seconds, {elapsed_time/3600.0:.2f} hours.\n")
 
 time.sleep(0.01)
 ser.write("$NAND_ID$msgEnd".encode()) # clean it up
@@ -104,6 +145,7 @@ for i in range(0,RANGE):
     offset+=1
     addr+=1'''
     
+log.write("=====SHA VERIFICATION=====")    
 addr = 0
 offset = 0 
 for i in range(0,BLOCKS):
@@ -121,10 +163,14 @@ for i in range(0,BLOCKS):
             sha256 = line.split("SHA: ", 1)[1]
             if(not sha256 or (sha256 != original_sha256)):
                 print(F"SHA Mismatch: block {addr}\noriginal: {original_sha256}\nchip: {sha256}")
+                log.write(F"SHA Mismatch: block {addr}\noriginal: {original_sha256}\nchip: {sha256}\n")
+
             #print(F"block {addr} SHA: {sha256}")
             break
         if time.time() > 1 +time_out:
             print("ERROR: timeout on SHA256")
+            log.write("ERROR: timeout on SHA256\n")
+            
             quit()
     
     
@@ -133,14 +179,15 @@ for i in range(0,BLOCKS):
     addr+=1
 
     
-print("done")
-#ser.write(clear.encode())
+
+print("Completed verification.")
+log.write("Completed verification.\n")#ser.write(clear.encode())
 ser.close()
 
 end_time = time.time()
 
 elapsed_time = end_time - start_time
 
-print(f"Start Time: {start_time}")
-print(f"End Time: {end_time}")
-print(f"Elapsed Time: {elapsed_time:.2f} seconds, {elapsed_time/3600.0:.2f} hours.")
+log.write(f"Start Time: {start_time}\n")
+log.write(f"End Time: {end_time}\n")
+log.write(f"Elapsed Time: {elapsed_time:.2f} seconds, {elapsed_time/3600.0:.2f} hours.\n")

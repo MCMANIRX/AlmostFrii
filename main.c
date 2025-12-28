@@ -92,7 +92,8 @@ void console() {
             if(buffer_bytes >= PAGE_SIZE)
                 {
                     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
-                    write_page(write_addr,str,PAGE_SIZE,false,0x0); // buffer write
+                    sleep_ms(200);
+                   // write_page(write_addr,str,PAGE_SIZE,false,0x0); // buffer write
                     /*for(int i = 0 ; i< PAGE_SIZE; ++i) {
                         printf("%02x",str[i]);
                     }*/

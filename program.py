@@ -71,8 +71,7 @@ for i in range(0,RANGE):
         
         if time.time() > 1 +time_out:
             print(F"[{(time.time())}] ERROR: timeout on write ACK")
-            log.write(F"[{(time.time())}] ERROR: timeout on write ACK")
-            quit()
+            log.write(F"[{(time.time())}] ERROR: timeout on write ACK, page {addr}, block {int(addr/0x40)}")
             
         elif 'WERR' in line:
             print(F"[{(time.time())}] ERROR: line write error")

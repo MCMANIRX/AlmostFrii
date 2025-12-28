@@ -142,8 +142,8 @@ void cache_addr(u32 addr, u8 * frames) {
     frames[3] = (addr >> 8) & 0xff;
     frames[4] = (addr >> 16) & 0x3;
 
-    //for(int i = 0; i < 5; ++i)
-    //    printf("frame %x: %x\n",i,frames[i]);
+   /* for(int i = 0; i < 4; i++)
+        printf("frame %x: %x\n",i,frames[i]);*/
 
 
 
@@ -212,6 +212,7 @@ u8 read_io() {
 }
 
 void read_id() {
+    gpio_put(WP_,0);
 
     u32 id[4] = {0};
 
@@ -255,6 +256,7 @@ void read_id() {
 
 
 void read_status() {
+    gpio_put(WP_,0);
 
     gpio_put(RE_,1);
 
@@ -272,6 +274,7 @@ void read_status() {
 
 
 void read_page(u32 addr) {
+    gpio_put(WP_,0);
 
     gpio_put(RE_,1);
     gpio_put(ALE,0);
@@ -303,6 +306,7 @@ void read_page(u32 addr) {
         u8 ret = read_io();
         printf("%02x\n",ret);
         gpio_put(RE_,1);
+        wait_16();
         wait_16();
 
    }
@@ -348,6 +352,7 @@ void write_page(u32 addr, u8 *buf, size_t len, bool test, u8 test_val) {
 
 
     gpio_put(CE_,1);
+    gpio_put(WP_,0);
 
 }
 
@@ -383,6 +388,7 @@ void erase_block(u32 addr) {
     if(status&1)
         puts("EERR");
 
+    gpio_put(WP_,0);
 
 }
 
@@ -401,6 +407,7 @@ void read_page_SHA(u32 addr) {
     gpio_put(RE_,1);
     gpio_put(ALE,0);
     gpio_put(CE_,0);
+    gpio_put(WP_,0);
     IO_OUT();
 
 
@@ -469,7 +476,6 @@ void get_page_SHA(u32 addr) {
     read_page_SHA(vaddr++);
     mbedtls_sha256_update(&ctx,pageBuffer,PAGE_SIZE);
     mbedtls_sha256_finish(&ctx,SHA);
-
 
     // output
     printf("SHA: ");

@@ -116,6 +116,7 @@ ser.write("$NAND_ID$msgEnd".encode()) # clean it up
 time.sleep(0.1)
 
 '''
+f.seek(0x0)
 addr = 0
 offset = 0 
 for i in range(0,RANGE):
@@ -132,18 +133,21 @@ for i in range(0,RANGE):
         if("SHA: " in line):
             sha256 = line.split("SHA: ", 1)[1]
             if(not sha256 or (sha256 != original_sha256)):
-                print(F"SHA Mismatch: page {addr}\noriginal: {original_sha256}\nchip: {sha256}")
-            print(F"original: {original_sha256}\nchip: {sha256}")
+                print(F"SHA Mismatch: page {addr}\norig: {original_sha256}\nchip: {sha256}")
+                log.write(F"SHA Mismatch: page {addr}\noriginal: {original_sha256}\nchip: {sha256}\n")
+
+            print(F"orig: {original_sha256}\nchip: {sha256}")
             break
+        
         if time.time() > 1 +time_out:
             print("ERROR: timeout on SHA256")
             quit()
-    
+   
     
     
     offset+=1
-    addr+=1'''
-    
+    addr+=1
+'''
 log.write("=====SHA VERIFICATION=====\n")    
 addr = 0
 offset = 0 

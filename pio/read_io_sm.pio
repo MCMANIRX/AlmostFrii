@@ -1,0 +1,58 @@
+.program read_io_sm
+
+; rb hi to RE lo = 20ns
+; cycle time = 30ns
+; data invalid after last read 50ns 
+
+pull block
+mov y, osr
+mov x, y
+
+.wrap_target
+wait 0 irq 1
+    set pins, 0 [1] ; dummy read
+    set pins, 1 [5]
+
+loop:
+    set pins, 0 
+    in pins, 8  
+    set pins, 1  [5] ; wait sufficiently long to avoid misreads
+    jmp x-- loop
+
+mov x, y
+irq 1
+.wrap
+
+
+
+
+
+
+
+% c-sdk {
+
+static inline void read_io_sm_init(PIO pio, uint sm, uint offset, uint io_base, uint num_io, uint32_t io_mask, uint re_) {
+    pio_sm_config c = read_io_sm_program_get_default_config(offset);
+
+    sm_config_set_in_shift(
+        &c,
+        false, // Shift-to-right = false (i.e. shift to left)
+        true,  // Autopush enabled
+        8      // Autopush threshold = 8
+    );
+    pio_sm_init(pio, sm, offset, &c);
+
+    for(int i =0 ; i < num_io; ++i)
+        pio_gpio_init(pio, io_base+i);
+
+    pio_sm_set_consecutive_pindirs(pio,sm,io_base,num_io,GPIO_IN);
+    pio_sm_set_in_pins(pio,sm,io_base);
+
+    pio_gpio_init(pio, re_);
+    pio_sm_set_consecutive_pindirs(pio,sm,re_,1,GPIO_OUT);
+    pio_sm_set_set_pins(pio,sm,re_,1);
+
+
+
+}
+%}

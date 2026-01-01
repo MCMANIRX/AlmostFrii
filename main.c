@@ -1,17 +1,22 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
+#include "stdlib.h"
 #include <math.h>
+#include "crc.h"
 #include <string.h>
 #include "pico/cyw43_arch.h"
+#include "tusb.h"
+
 
 #include "commands.h"
 
-#define BLOCK_COUNT 4096
-#define PAGE_COUNT 64
-#define PAGE_SIZE 2112
 
 
-u8 str[PAGE_SIZE + 0x40] = {0}; // bidirectional string and page buffer
+#define BYTES_BEGIN "$beginStream$"
+#define BYTES_END   "$endStream$"
+
+
+u8 str[200] = {0};
 u8 str_idx = 0;
 
 
@@ -21,11 +26,11 @@ typedef struct {
 } MARKER;
 
 
-static void init_marker(MARKER * marker, char *str) {
+static void init_marker(MARKER * marker, char *_str) {
     memset(marker->txt,0,24);
     marker->len = 0;
-    strcpy(marker->txt,str);
-    marker->len = strlen(str);
+    strcpy(marker->txt,_str);
+    marker->len = strlen(_str);
 }
 
 
@@ -53,72 +58,219 @@ bool marker_found(char *marker) {
 }
 
 
-u32 decompose_addr(int marker_len) {
+u32 decompose_addr() {
 
     char c = '\0';
 
     u32 addr = 0;
-    str_idx-=(1+marker_len);
+    char *start = strchr(str,'&');
+    char *end = strchr(str,'$');
 
+    if((!(start && end)) || abs( ((int)(((u8*)start)-str))  -((int)(((u8*)end)-str)) ) <= 1) {
 
-    for(int i = 0; i < str_idx; ++i){
-        c = str[i];
-       // printf("[%c %x]\n",c,c);
-
-        addr+=  (c - (c > 0x39 ? 0x37 : 0x30))* pow(16,str_idx-(i+1));
+        cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
+        while(1);
     }
 
+    int start_idx = (int)((u8*)start-str);
+    int end_idx = (int)((u8*)end-str);
+
+
+
+    for (int i = start_idx + 1; i < end_idx; i++) {
+        char c = str[i];
+
+        u8 value;
+        if (c >= '0' && c <= '9')
+            value = c - '0';
+        else if (c >= 'A' && c <= 'F')
+            value = c - 'A' + 10;
+        else if (c >= 'a' && c <= 'f')
+            value = c - 'a' + 10;
+        else
+            break; // invalid hex
+
+        addr = (addr << 4) | value;
+    }
+
+   // printf("addr: %x\n",addr);
+
     return addr;
+}
+
+
+u32 to_u32(char *buf, int len) {
+
+    char c = '\0';
+    u32 addr = 0;
+
+    for (int i = 0; i < len; i++) {
+        char c = str[i];
+
+        u8 value;
+        if (c >= '0' && c <= '9')
+            value = c - '0';
+        else if (c >= 'A' && c <= 'F')
+            value = c - 'A' + 10;
+        else if (c >= 'a' && c <= 'f')
+            value = c - 'a' + 10;
+        else
+            break; // invalid hex
+
+        addr = (addr << 4) | value;
+    }
+
+
+    return addr;
+}
+
+
+int read_byte_blocking(void) {
+    uint8_t b;
+    while (tud_cdc_read(&b, 1) != 1) {}
+    return b;
+}
+
+
+int read_n_bytes(u8 * buf, size_t idx, size_t len) {
+    int i = 0;
+
+    while(i < len) {
+
+        int in = read_byte_blocking();
+
+        if(in!=EOF){
+            buf[idx+i] = (u8)in;
+            i++;
+        }
+    }
+
+    return i;
 }
 
 
 u8 test_val = 0; // for writing random to chip
 u32 write_addr = 0;
 bool readMode = false;
-
+bool writeComplete = false;
+char failMsg[20] = {0};
 
 void console() {
     str_idx =0;
 
     while(1){
 
-        int in = getchar();
-
         if(readMode){
-            if(in>EOF){
-                str[buffer_bytes++]  = (u8)in;
-                
+            u8 chunk_idx = 0;
+            writeComplete = false;
+
+
+            // wait for chunk prefix
+            u8 mrkr[3] = {0};
+            read_n_bytes(mrkr,0,3);
+
+            if(strncmp(mrkr,"$bs",3)!=0){
+                strcpy(failMsg ,mrkr);
+                goto end;
             }
-            if(buffer_bytes >= PAGE_SIZE)
-                {
-                    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
-                    write_page(write_addr,str,PAGE_SIZE,false,0x0); // buffer write
-                    /*for(int i = 0 ; i< PAGE_SIZE; ++i) {
-                        printf("%02x",str[i]);
-                    }*/
-                    readMode = false;
-                    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
-                    str_idx = 0;
-                    puts("wc\n");
 
+            while(chunk_idx != 8) {
 
+            /*
+
+                // get CRC32
+                u32 crc = 0;
+                read_n_bytes((u8*)(&crc),0,4);
+
+                // get chunk
+                buffer_bytes += read_n_bytes(pageBuffer,chunk_idx*CHUNK_SIZE,CHUNK_SIZE);
+
+                if(crc != crc32(&pageBuffer[chunk_idx*CHUNK_SIZE],CHUNK_SIZE)){
+
+                    strcpy(failMsg ,"bad crc!");
+
+                    goto end;
+                }*/
+
+                buffer_bytes += read_n_bytes(pageBuffer,chunk_idx*CHUNK_SIZE,CHUNK_SIZE);
+                chunk_idx++;
+
+            }
+
+                // get chunk suffix
+                read_n_bytes(mrkr,0,3);
+                if(strncmp(mrkr,"$bf",3)!=0){
+                    strcpy(failMsg ,"bad $bf!");
+                    goto end;
                 }
-            else
+    
+
+            if(buffer_bytes!=PAGE_SIZE){
+
+                strcpy(failMsg ,"bad buffer bytes!");
+
+                goto end;
+            }
+            
+            // send SHA
+            get_buffer_SHA();
+
+            // wait for SHA good
+            char ack = '\0';
+            read_n_bytes(&ack,0,1);
+
+            if(strncmp(&ack,"w",1)!=0){
+                strcpy(failMsg,&ack);
+
+                goto end;
+            }
+
+            
+            write_page(write_addr,pageBuffer,PAGE_SIZE,false,0x0); // buffer write
+
+            puts("wc\n"); // ack write complete
+            
+            writeComplete = true;
+
+            end:
+
+                readMode = false;
+                str_idx = 0;
+                buffer_bytes = 0;
+                bool flicker = false;
+
+                if(!writeComplete)
+                    while(1) {
+                        cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, flicker);
+                        flicker = !flicker;
+                        sleep_ms(100);
+                        printf("%s\n",failMsg);
+                    }
+
+                writeComplete = false;
                 continue;
         }
 
 
 
-        if(in>EOF){
+
+        int in = read_byte_blocking();
+
+
+        if(in>0){
             str[str_idx++]  = (u8)in;
 
             if(marker_found("$msgEnd")){
                 str_idx-=6;
 
+
+
                  if(marker_found("$pageIn")) {
                     readMode = true;
                     buffer_bytes =0;
                     str_idx = 0;
+                    memset(pageBuffer,0,PAGE_SIZE);
+
                     continue;
                  }
 
@@ -134,14 +286,11 @@ void console() {
                 }*/
 
                 else if(marker_found("$pageWAddr")) {
-                    write_addr = decompose_addr(10)&0x3ffff;
+                    write_addr = decompose_addr()&0x3ffff;
                    // printf("page address set to 0x%x\n",write_addr);
 
                 }
                 
-
-                else if(marker_found("$pageRead"))
-                    read_page((decompose_addr(9)&0x3ffff));   // page read
 
                 else if(marker_found("$pageClr")){
                     str_idx = 0;
@@ -150,36 +299,44 @@ void console() {
                 
                 
                 else if(marker_found("$pageSetTest")){
-                    test_val = (u8)(decompose_addr(12)&0xff); // test pattern set
+                    test_val = (u8)(decompose_addr()&0xff); // test pattern set
                     printf("set test pattern to \"%x.\"\n",test_val);
                 }
 
-                else if(marker_found("$pageWriteTest"))
-                    write_page((decompose_addr(14)&0x3ffff),NULL,PAGE_SIZE,true,test_val); // test pattern write
+                else if(marker_found("$pageWriteTest")){
+                    write_page((decompose_addr()&0x3ffff),NULL,PAGE_SIZE,true,test_val); // test pattern write
+                }
 
-                else if(marker_found("$blockSHA"))
-                    get_block_SHA(decompose_addr(9)&0xfff);
+                else if(marker_found("$pageRead")){
+ 
+                    read_page((decompose_addr()&0x3ffff));   // page read
+                }
 
-                 else if(marker_found("$pageSHA"))
-                    get_page_SHA(decompose_addr(8)&0x3ffff);
-
-                else if(marker_found("$blockErase"))
-                    erase_block((decompose_addr(15)&0xfff)); // block erase (takes row address only)       
-                    
-                else if(marker_found("$NAND__fullErase"))
+                else if(marker_found("$blockSHA")){
+                    get_block_SHA(decompose_addr()&0xfff);
+                }
+                 else if(marker_found("$pageSHA")){
+                    get_page_SHA(decompose_addr()&0x3ffff);
+                 }
+                else if(marker_found("$blockErase")){
+                    erase_block((decompose_addr()&0xfff)); // block erase (takes row address only)       
+                }
+                else if(marker_found("$NAND__fullErase")){
                     erase_chip(); // full chip erase
-
-                else if(marker_found("$NAND_id")) // id read
+                }
+                else if(marker_found("$NAND_id")) {// id read
                     read_id();
+                }
                 
                 str_idx = 0;
+                    memset(str,0,sizeof(str));
 
                 }
 
             } 
             
-            else if(in == 0x8 && str_idx>0)
-                str_idx -=1;
+           // else if(in == 0x8 && str_idx>0)
+           //     str_idx -=1;
 
         }
 
@@ -192,7 +349,8 @@ int main()
 
     stdio_init_all();
 
-    pageBuffer = &str[0];
+
+    //pageBuffer = &str[0];
 
     
     // Initialise the Wi-Fi chip

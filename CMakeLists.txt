@@ -39,6 +39,9 @@ add_executable(wii-nand-interf
 main.c
 commands.c )
 
+pico_generate_pio_header(wii-nand-interf ${CMAKE_CURRENT_LIST_DIR}/pio/read_io_sm.pio)
+
+
 pico_set_program_name(wii-nand-interf "wii-nand-interf")
 pico_set_program_version(wii-nand-interf "0.1")
 
@@ -51,6 +54,7 @@ target_link_libraries(wii-nand-interf
         pico_stdlib
         pico_mbedtls
         pico_cyw43_arch_none
+        hardware_dma
 
                 )
 

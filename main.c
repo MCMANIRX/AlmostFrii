@@ -16,7 +16,7 @@
 #define BYTES_END   "$endStream$"
 
 
-u8 str[200] = {0};
+u8 str[100] = {0};
 u8 str_idx = 0;
 
 
@@ -269,7 +269,7 @@ void console() {
                     readMode = true;
                     buffer_bytes =0;
                     str_idx = 0;
-                    memset(pageBuffer,0,PAGE_SIZE);
+                   // memset(pageBuffer,0,PAGE_SIZE);
 
                     continue;
                  }
@@ -329,7 +329,8 @@ void console() {
                 }
                 
                 str_idx = 0;
-                    memset(str,0,sizeof(str));
+                str[0] = 0x0;
+                //    memset(str,0,sizeof(str));
 
                 }
 
@@ -350,7 +351,7 @@ int main()
     stdio_init_all();
 
 
-    //pageBuffer = &str[0];
+  //  pageBuffer = str;
 
     
     // Initialise the Wi-Fi chip

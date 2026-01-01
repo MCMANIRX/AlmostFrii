@@ -155,7 +155,7 @@ void init_pio_dma() {
 
     
 
-    static uintptr_t bufferPtr = (uintptr_t)pageBuffer;
+    //static uintptr_t bufferPtr = (uintptr_t)pageBuffer;
 
     rx_dma = dma_claim_unused_channel(true);
     reset_rx_dma = dma_claim_unused_channel(true);

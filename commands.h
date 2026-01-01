@@ -7,6 +7,7 @@ typedef uint32_t u32;
 #define BLOCK_COUNT 4096
 #define PAGE_COUNT 64
 #define PAGE_SIZE 2112
+#define PAGE_SIZE_32 528
 #define CHUNK_SIZE 264
 
 extern  u8 SHA[32];

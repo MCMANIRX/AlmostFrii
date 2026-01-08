@@ -5,7 +5,7 @@ import pathlib
 import zlib
 PAGE_SIZE = 2112
 PAGE_COUNT = 64
-BLOCK_SIZE = 2112 * 64
+BLOCK_SIZE = (2112 * 64)
 CHUNK_SIZE = 264
 EOF = "$msgEnd"
 
@@ -14,7 +14,6 @@ BYTES_FINISHED = "$bf".encode()
 
 
 sector = 0
-start_time = time.time()
 
 
 pathlib.Path("log").mkdir(parents=True, exist_ok=True)
@@ -41,6 +40,7 @@ do_test_write = False
 do_page_SHA = False
 do_block_SHA = True
 
+start_time = time.time()
 
 if do_write:
     log.write("=====FILE WRITE=====\n")
@@ -155,7 +155,7 @@ if do_write:
     ser.write("$NAND_ID$msgEnd".encode()) # buffer to be safe
     time.sleep(0.1)
     
-if do_test_write:
+if do_test_write and not do_write:
     payload = ('&{:X}'.format(0xAD)+"$pageSetTest"+EOF).encode()
     ser.write(payload)
     time.sleep((0.01))
@@ -169,6 +169,7 @@ if do_test_write:
 
 
 if do_page_SHA:
+    start_time = time.time()
     log.write("=====SHA VERIFICATION (page)=====\n")    
     f.seek(0x0)
     addr = 0
@@ -205,8 +206,19 @@ if do_page_SHA:
         
     print("Completed page verification.")
     log.write("Completed page verification.\n")#ser.write(clear.encode())
+    
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    log.write(f"Start Time: {start_time}\n")
+    log.write(f"End Time: {end_time}\n")
+    log.write(f"Elapsed Time: {elapsed_time:.2f} seconds, {elapsed_time/3600.0:.2f} hours.\n")
+    
+    print(f"Start Time: {start_time}")
+    print(f"End Time: {end_time}")
+    print(f"Elapsed Time: {elapsed_time:.2f} seconds, {elapsed_time/3600.0:.2f} hours.")
 
 if do_block_SHA:
+    start_time = time.time()
     log.write("=====SHA VERIFICATION (block)=====\n")    
     addr = 0
     offset = 0 
@@ -248,12 +260,18 @@ if do_block_SHA:
 
     print("Completed block verification.")
     log.write("Completed block verification.\n")#ser.write(clear.encode())
+    end_time = time.time()
+
+    elapsed_time = end_time - start_time
+
+    log.write(f"Start Time: {start_time}\n")
+    log.write(f"End Time: {end_time}\n")
+    log.write(f"Elapsed Time: {elapsed_time:.2f} seconds, {elapsed_time/3600.0:.2f} hours.\n")
+    
+    print(f"Start Time: {start_time}")
+    print(f"End Time: {end_time}")
+    print(f"Elapsed Time: {elapsed_time:.2f} seconds, {elapsed_time/3600.0:.2f} hours.")
+    
 ser.close()
 
-end_time = time.time()
 
-elapsed_time = end_time - start_time
-
-log.write(f"Start Time: {start_time}\n")
-log.write(f"End Time: {end_time}\n")
-log.write(f"Elapsed Time: {elapsed_time:.2f} seconds, {elapsed_time/3600.0:.2f} hours.\n")

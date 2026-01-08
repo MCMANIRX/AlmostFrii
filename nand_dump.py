@@ -1,5 +1,6 @@
 import serial
 import time
+import hashlib
 import pathlib
 
 addr = 0
@@ -10,16 +11,23 @@ BLOCKS = 8
 PAGES = 64
 PAGE_SIZE = 2112
 
-BYTES_START = "$bs\r\n".encode()
+BLOCK_SIZE = (2112 * 64) # 0x21000
+EOF = "$msgEnd"
 
+
+BYTES_START = "$bs\r\n".encode()
+FILENAME = F'nand_dumps/nand-{time.time()}.bin'
 ser = serial.Serial("COM13", 115200,timeout=3,write_timeout=3)
 
 pathlib.Path("nand_dumps").mkdir(parents=True, exist_ok=True)
-f = open(F'nand_dumps/nand-{time.time()}.bin', 'wb')
+f = open(FILENAME, 'wb')
 
-clear = "clr\r\n"
-ser.write(clear.encode())
-time.sleep(0.5)
+
+# compute per-block hash
+do_block_SHA = True
+
+
+
 last_time = time.time()
 addr = 0
 for i in range(0,BLOCKS*PAGES):
@@ -55,7 +63,6 @@ for i in range(0,BLOCKS*PAGES):
     
     
 print("done")
-ser.close()
 
 end_time = time.time()
 
@@ -64,3 +71,68 @@ elapsed_time = end_time - start_time
 print(f"Start Time: {start_time}")
 print(f"End Time: {end_time}")
 print(f"Elapsed Time: {elapsed_time:.2f} seconds, {elapsed_time/3600.0:.2f} hours.")
+
+
+if do_block_SHA:
+    start = time.time()
+    log = open('nand_dumps/log-'+str(int(time.time()))+".txt", 'w')
+    f = open(FILENAME, 'rb') 
+
+    print("=====SHA VERIFICATION (block)=====\n")    
+    log.write("=====SHA VERIFICATION (block)=====\n")    
+    
+    addr = 0
+    offset = 0 
+    for i in range(0,BLOCKS):
+        f.seek(offset*(BLOCK_SIZE))
+        original_sha256 = hashlib.sha256(f.read(BLOCK_SIZE)).hexdigest()
+        
+        payload = ('&{:X}'.format(addr)+"$blockSHA"+EOF).encode()
+        ser.write(payload)
+        
+        
+        time_out = time.time()
+        while(True):
+            line = ser.readline()[:-2].decode('utf-8')
+            if("SHA: " in line):
+                sha256 = line.split("SHA: ", 1)[1]
+                if(sha256 == original_sha256):
+                    print(F"SHA match for block {addr}\norig: {original_sha256}\nchip: {sha256}")
+                    log.write(F"SHA match for block {addr}\norig: {original_sha256}\nchip: {sha256}\n")
+
+                else:
+                    print(F"SHA Mismatch: block {addr}\noriginal: {original_sha256}\nchip: {sha256}")
+                    log.write(F"SHA Mismatch: block {addr}\noriginal: {original_sha256}\nchip: {sha256}\n")
+
+                break
+            if time.time() > 1 +time_out:
+                print("ERROR: timeout on SHA256")
+                log.write("ERROR: timeout on SHA256\n")
+                
+                quit()
+        
+        
+        
+        offset+=1
+        addr+=1
+
+        
+
+    print("Completed block verification.")
+    log.write("Completed block verification.\n")#ser.write(clear.encode())
+    
+    end_time = time.time()
+
+    elapsed_time = end_time - start_time
+
+    log.write(f"Start Time: {start_time}\n")
+    log.write(f"End Time: {end_time}\n")
+    log.write(f"Elapsed Time: {elapsed_time:.2f} seconds, {elapsed_time/3600.0:.2f} hours.\n")
+    print(f"Start Time: {start_time}\n")
+    print(f"End Time: {end_time}\n")
+    print(f"Elapsed Time: {elapsed_time:.2f} seconds, {elapsed_time/3600.0:.2f} hours.\n")
+    
+ser.close()
+
+
+

@@ -2,6 +2,7 @@ import serial
 import time
 import hashlib
 import pathlib
+import console_commands as cc
 
 addr = 0
 sector = 0
@@ -12,7 +13,6 @@ PAGES = 64
 PAGE_SIZE = 2112
 
 BLOCK_SIZE = (2112 * 64) # 0x21000
-EOF = "$msgEnd"
 
 
 BYTES_START = "$bs\r\n".encode()
@@ -35,13 +35,13 @@ for i in range(0,BLOCKS*PAGES):
 
     if(addr%(64)==0):
 
-        sector+=1
         print("reading block",sector,"(",addr*2112,"bytes,",(addr*2112 / 1E6),"MB), time =",time.time()-last_time,"seconds...")
         last_time = time.time()
+        sector+=1
 
 
     payload = '&{:X}'.format(addr)
-    payload +='$pageRead$msgEnd\r' 
+    payload += cc.READ_PAGE + cc.MESSAGE_END +'\r'
     
     byte_count = 0
     #time.sleep(0.1)
@@ -87,7 +87,7 @@ if do_block_SHA:
         f.seek(offset*(BLOCK_SIZE))
         original_sha256 = hashlib.sha256(f.read(BLOCK_SIZE)).hexdigest()
         
-        payload = ('&{:X}'.format(addr)+"$blockSHA"+EOF).encode()
+        payload = ('&{:X}'.format(addr)+cc.BLOCK_SHA+cc.MESSAGE_END).encode()
         ser.write(payload)
         
         

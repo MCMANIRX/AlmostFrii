@@ -3,14 +3,19 @@ import time
 import hashlib
 import pathlib
 import zlib
+import console_commands as cc
+import sys
+
 PAGE_SIZE = 2112
 PAGE_COUNT = 64
 BLOCK_SIZE = (2112 * 64)
 CHUNK_SIZE = 264
-EOF = "$msgEnd"
 
-BYTES_START = "$bs".encode()
-BYTES_FINISHED = "$bf".encode()
+BYTES_START = cc.BYTES_START.encode()
+BYTES_FINISHED = cc.BYTES_FINISHED.encode()
+PAGE_IN = (cc.PAGE_IN+cc.MESSAGE_END).encode()
+
+EMPTY_BLOCK = "49a871401dfd0c0897d7beb7956fde1c59eb86c446f627e1dda9c6e58be67118" # all FF's
 
 
 sector = 0
@@ -20,7 +25,7 @@ pathlib.Path("log").mkdir(parents=True, exist_ok=True)
 log = open('log/log-'+str(int(time.time()))+".txt", 'w')
 
 
-f = open('fwd.bin', 'rb') # input NAND image
+#f = open('fwd.bin', 'rb') # input NAND image
 
 
 ser = serial.Serial("COM13", 115200,timeout=3, write_timeout= 1, xonxoff=False, rtscts=False, dsrdtr=False)
@@ -32,22 +37,125 @@ last_time = time.time()
 addr = 0x0
 offset = 0x0
 
-BLOCKS = 8
-RANGE = 0x40 * BLOCKS
+nblocks = 0
 
 do_write = False
 do_test_write = False
 do_page_SHA = False
 do_block_SHA = True
+debug = False
+
+f  = []
+nand_file = ""
+
+
+if len(sys.argv)>1:
+    for q in range (1, len(sys.argv)):
+        arg = sys.argv[q]
+        
+        if '-' in arg:
+            option = arg.split('-')[1]
+            
+            if 'l' in option:
+                option = arg.split("l")
+                try:
+                    nblocks = int(option[1])
+                except ValueError:
+                    print("ERROR: invalid block number")
+                    quit()
+                continue
+            
+            if 'a' in option:
+                option = arg.split("a")
+                try:
+                    addr = int(option[1],16)
+                except ValueError:
+                    print("ERROR: invalid address")
+                    quit()
+                continue
+            
+            if 'w' in option and not do_test_write:
+                do_write = True
+            if 't' in option and not do_write:
+                do_test_write = True
+            if 'p' in option:
+                do_page_SHA = True
+            if 'b' in option:
+                do_block_SHA = True
+            if 'B' in option:
+                do_block_SHA = False
+            if 'd' in option:
+                debug = True
+
+                
+        else:
+            nand_file = arg
+            try:
+                f = open(nand_file,"rb")
+            except FileNotFoundError:
+                print("ERROR: File does not exist")
+                quit()
+            except PermissionError:
+                print("ERROR: No permission to read the file")
+                quit()
+            except OSError as e:
+                print(f"ERROR: File read error: {e}")
+                quit()
+    
+if not nand_file:
+    print("ERROR: No NAND file")
+    quit()
+    
+opt_str = "\nDoing "
+if do_test_write:
+    opt_str+="test write "
+elif do_write:
+    opt_str+="write "
+if do_write or do_test_write:
+    opt_str+=F"from image {nand_file}"
+    if (do_block_SHA or do_page_SHA):
+        opt_str+=" with "
+
+if do_page_SHA:
+    opt_str+="per-page "
+if do_block_SHA:
+    if do_page_SHA:
+        opt_str+="and "
+    opt_str+="per-block "
+if do_block_SHA or do_page_SHA:
+    opt_str+="SHA256 calculation"
+
+opt_str+=F", starting at block address {hex(addr)} for {nblocks} blocks"
+    
+print(opt_str) 
+log.write(opt_str)
+if debug:
+    quit()
+time.sleep(0.5)
+
+
+# setup values 
+addr*=BLOCK_SIZE
+offset = addr
+nrange = 0x40 * nblocks
+
+
 
 start_time = time.time()
 
-if do_write:
+if do_write and not do_test_write:
     log.write("=====FILE WRITE=====\n")
-    for i in range(0,RANGE):
+    while addr < nrange:
 
 
         if(addr%(0x40)==0):
+            sha256 = hashlib.sha256(f.read(BLOCK_SIZE)).hexdigest()
+            if sha256 == EMPTY_BLOCK:
+                print(F"skipping null block {sector}")
+                sector+=1
+                addr+=PAGE_COUNT
+                offset+=PAGE_COUNT
+                continue
 
             update = (F"writing block {sector} ({addr*2112} bytes, {(addr*2112) / 1E6}MB), time = {time.time()-last_time} seconds...")
             print(update)
@@ -55,10 +163,11 @@ if do_write:
 
             last_time = time.time()
             sector+=1
+            
 
             
         # set address
-        payload = ('&{:X}'.format(addr)+"$pageWAddr"+EOF).encode()
+        payload = ('&{:X}'.format(addr)+cc.SET_W_ADDR+cc.MESSAGE_END).encode()
         ser.write(payload)
 
         sha_good = False
@@ -77,8 +186,7 @@ if do_write:
                 quit()
                 
             # force pico to enter data input/read mode 
-            payload = ("$pageIn"+EOF).encode()
-            ser.write(payload)
+            ser.write(PAGE_IN)
 
             f.seek(offset*(PAGE_SIZE))
             byte_buffer = f.read(PAGE_SIZE)
@@ -152,15 +260,15 @@ if do_write:
     log.write(f"Elapsed Time: {elapsed_time:.2f} seconds, {elapsed_time/3600.0:.2f} hours.\n")
 
     time.sleep(0.01)
-    ser.write("$NAND_ID$msgEnd".encode()) # buffer to be safe
+    ser.write((cc.NAND_ID+cc.MESSAGE_END).encode()) # buffer to be safe
     time.sleep(0.1)
     
 if do_test_write and not do_write:
-    payload = ('&{:X}'.format(0xAD)+"$pageSetTest"+EOF).encode()
+    payload = ('&{:X}'.format(0xAD)+cc.SET_W_TST_VAL+cc.MESSAGE_END).encode()
     ser.write(payload)
     time.sleep((0.01))
-    for i in range(0,RANGE):
-        payload = ('&{:X}'.format(i)+"$pageWriteTest"+EOF).encode()
+    for i in range(0,nrange):
+        payload = ('&{:X}'.format(i)+cc.TEST_W+cc.MESSAGE_END).encode()
         ser.write(payload)
 
         time.sleep((0.01))
@@ -174,12 +282,12 @@ if do_page_SHA:
     f.seek(0x0)
     addr = 0
     offset = 0 
-    for i in range(0,BLOCKS*PAGE_COUNT):
+    for i in range(0,nblocks*PAGE_COUNT):
         f.seek(offset*(PAGE_SIZE))
         print(hex(offset*PAGE_SIZE))
         original_sha256 = hashlib.sha256(f.read(PAGE_SIZE)).hexdigest()
         
-        payload = ('&{:X}'.format(addr)+"$pageSHA"+EOF).encode()
+        payload = ('&{:X}'.format(addr)+cc.PAGE_SHA+cc.MESSAGE_END).encode()
         ser.write(payload)
         
     
@@ -204,8 +312,8 @@ if do_page_SHA:
         offset+=1
         addr+=1
         
-    print("Completed page verification.")
-    log.write("Completed page verification.\n")#ser.write(clear.encode())
+    print("\nCompleted page verification.")
+    log.write("\nCompleted page verification.\n")#ser.write(clear.encode())
     
     end_time = time.time()
     elapsed_time = end_time - start_time
@@ -222,11 +330,11 @@ if do_block_SHA:
     log.write("=====SHA VERIFICATION (block)=====\n")    
     addr = 0
     offset = 0 
-    for i in range(0,BLOCKS):
+    for i in range(0,nblocks):
         f.seek(offset*(BLOCK_SIZE))
         original_sha256 = hashlib.sha256(f.read(BLOCK_SIZE)).hexdigest()
         
-        payload = ('&{:X}'.format(addr)+"$blockSHA"+EOF).encode()
+        payload = ('&{:X}'.format(addr)+cc.BLOCK_SHA+cc.MESSAGE_END).encode()
         ser.write(payload)
         
         
@@ -258,8 +366,8 @@ if do_block_SHA:
 
         
 
-    print("Completed block verification.")
-    log.write("Completed block verification.\n")#ser.write(clear.encode())
+    print("\nCompleted block verification.")
+    log.write("\nCompleted block verification.\n")#ser.write(clear.encode())
     end_time = time.time()
 
     elapsed_time = end_time - start_time

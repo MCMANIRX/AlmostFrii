@@ -261,12 +261,12 @@ void console() {
         if(in>0){
             str[str_idx++]  = (u8)in;
 
-            if(marker_found("$msgEnd")){
-                str_idx-=6;
+            if(marker_found(MESSAGE_END)){
+                str_idx-=LEN_MSG_END;
 
 
 
-                 if(marker_found("$pageIn")) {
+                 if(marker_found(PAGE_IN)) {
                     readMode = true;
                     buffer_bytes =0;
                     str_idx = 0;
@@ -286,46 +286,46 @@ void console() {
                    // }
                 }*/
 
-                else if(marker_found("$pageWAddr")) {
+                else if(marker_found(SET_W_ADDR)) {
                     write_addr = decompose_addr()&0x3ffff;
                    // printf("page address set to 0x%x\n",write_addr);
 
                 }
                 
 
-                else if(marker_found("$pageClr")){
+                else if(marker_found(CLR)){
                     str_idx = 0;
                     memset(str,0,sizeof(str));
                 }
                 
                 
-                else if(marker_found("$pageSetTest")){
+                else if(marker_found(SET_W_TST_VAL)){
                     test_val = (u8)(decompose_addr()&0xff); // test pattern set
                     printf("set test pattern to \"%x.\"\n",test_val);
                 }
 
-                else if(marker_found("$pageWriteTest")){
+                else if(marker_found(TEST_W)){
                     write_page((decompose_addr()&0x3ffff),NULL,PAGE_SIZE,true,test_val); // test pattern write
                 }
 
-                else if(marker_found("$pageRead")){
+                else if(marker_found(READ_PAGE)){
  
                     read_page((decompose_addr()&0x3ffff));   // page read
                 }
 
-                else if(marker_found("$blockSHA")){
+                else if(marker_found(BLOCK_SHA)){
                     get_block_SHA(decompose_addr()&0xfff);
                 }
-                 else if(marker_found("$pageSHA")){
+                 else if(marker_found(PAGE_SHA)){
                     get_page_SHA(decompose_addr()&0x3ffff);
                  }
-                else if(marker_found("$blockErase")){
+                else if(marker_found(BLOCK_ERASE)){
                     erase_block((decompose_addr()&0xfff)); // block erase (takes row address only)       
                 }
-                else if(marker_found("$NAND__fullErase")){
+                else if(marker_found(CHIP_ERASE)){
                     erase_chip(); // full chip erase
                 }
-                else if(marker_found("$NAND_id")) {// id read
+                else if(marker_found(NAND_ID)) {// id read
                     read_id();
                 }
                 

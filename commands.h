@@ -1,4 +1,5 @@
 #include "pico/stdlib.h"
+#include "console_commands.h"
 typedef uint8_t u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
@@ -10,9 +11,6 @@ typedef uint32_t u32;
 #define PAGE_SIZE_32 528
 #define CHUNK_SIZE 264
 
-
-#define BYTES_START "$bs"
-#define BYTES_FINISHED "$bf"
 
 extern  u8 SHA[32];
 extern int buffer_bytes;

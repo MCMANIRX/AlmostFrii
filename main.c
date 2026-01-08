@@ -12,8 +12,6 @@
 
 
 
-#define BYTES_BEGIN "$beginStream$"
-#define BYTES_END   "$endStream$"
 
 
 u8 str[100] = {0};
@@ -156,6 +154,9 @@ bool writeComplete = false;
 char failMsg[20] = {0};
 
 void console() {
+
+    tud_task();
+
     str_idx =0;
 
     while(1){
@@ -169,7 +170,7 @@ void console() {
             u8 mrkr[3] = {0};
             read_n_bytes(mrkr,0,3);
 
-            if(strncmp(mrkr,"$bs",3)!=0){
+            if(strncmp(mrkr,BYTES_START,3)!=0){
                 strcpy(failMsg ,mrkr);
                 goto end;
             }
@@ -199,7 +200,7 @@ void console() {
 
                 // get chunk suffix
                 read_n_bytes(mrkr,0,3);
-                if(strncmp(mrkr,"$bf",3)!=0){
+                if(strncmp(mrkr,BYTES_FINISHED,3)!=0){
                     strcpy(failMsg ,"bad $bf!");
                     goto end;
                 }

@@ -6,6 +6,7 @@
 #include "hardware/pio.h"
 #include "hardware/dma.h"
 #include "read_io_sm.pio.h"
+#include "tusb.h"
 
 
 #define NUM_GPIO 8
@@ -267,7 +268,7 @@ void send_cmd(u8 cmd) {
 }
 
 
-
+// cache row address
 void cache_addr(u32 addr, u8 * frames) {
 
 /*
@@ -472,13 +473,17 @@ void read_page(u32 addr) {
 
     gpio_put(CE_,1);
 
-    // TODO:: actually use tusb
+    // binary tx with tusb
+    u32 sent_bytes = 0;
+    puts(BYTES_START);
+    while(sent_bytes < PAGE_SIZE)
+        if(tud_cdc_available()){
+            sent_bytes+= tud_cdc_write(&pageBuffer[sent_bytes], CFG_TUD_CDC_EP_BUFSIZE);
+            tud_cdc_write_flush();
+        }
+    puts(BYTES_FINISHED);
 
-    for(int i =0; i  < 8; ++i) {
-        for(int j = 0; j < 264; ++j)
-            printf("%02x ",pageBuffer[j + (264*i)]);
-        printf("\n");
-   }
+
 
     reset_dma();
 
@@ -487,7 +492,6 @@ void read_page(u32 addr) {
 
 
 }
-#include "pico/cyw43_arch.h"
 
 void write_page(u32 addr, u8 *buf, size_t len, bool test, u8 test_val) {
     //cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);

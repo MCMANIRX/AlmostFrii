@@ -10,6 +10,8 @@ BLOCKS = 8
 PAGES = 64
 PAGE_SIZE = 2112
 
+BYTES_START = "$bs\r\n".encode()
+
 ser = serial.Serial("COM13", 115200,timeout=3,write_timeout=3)
 
 pathlib.Path("nand_dumps").mkdir(parents=True, exist_ok=True)
@@ -34,34 +36,21 @@ for i in range(0,BLOCKS*PAGES):
     payload +='$pageRead$msgEnd\r' 
     
     byte_count = 0
-    time.sleep(0.1)
+    #time.sleep(0.1)
     start = time.time()
     ser.write(payload.encode())
     msgNum = 0
     while byte_count < PAGE_SIZE and time.time() - start <= 10:
-        buffer = ser.readline()[:-2].decode('utf-8')
-        #print(buffer)
-        msgNum+=1
-        if(msgNum>8):
-            print("ERR0")
-
-        if not buffer:
-            print("ERR1")
-            break
+        buffer = None
         
-        #print(buffer)
-        if 'ERR' in buffer:
-            print("ERR2",addr)
-            print(buffer)
-            break  
-        _bytes = buffer.split(" ")
-        for byte in _bytes:
-            if(byte):
-                f.write(int(byte,16).to_bytes(1,"big"))
-            byte_count+=1
+        if(ser.readline() == BYTES_START):
+            buffer = ser.read(PAGE_SIZE)
+            byte_count+=PAGE_SIZE
+            f.write(buffer)
+            
     if time.time() - start >= 10:
         print("Timeout error. Exiting!")
-        #quit()
+        quit()
     addr+=1
     
     

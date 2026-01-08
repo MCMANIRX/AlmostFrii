@@ -9,6 +9,10 @@ BLOCK_SIZE = 2112 * 64
 CHUNK_SIZE = 264
 EOF = "$msgEnd"
 
+BYTES_START = "$bs".encode()
+BYTES_FINISHED = "$bf".encode()
+
+
 sector = 0
 start_time = time.time()
 
@@ -29,12 +33,12 @@ last_time = time.time()
 addr = 0x0
 offset = 0x0
 
-BLOCKS = 4096
+BLOCKS = 8
 RANGE = 0x40 * BLOCKS
 
 do_write = False
 do_test_write = False
-do_page_SHA = True
+do_page_SHA = False
 do_block_SHA = True
 
 
@@ -82,7 +86,7 @@ if do_write:
             
 
             # send and write page data 2112/8 = 264 bytes at a time
-            ser.write("$bs".encode())
+            ser.write(BYTES_START)
             for j in range(0,8):
                 bo = CHUNK_SIZE*j
                 payload = byte_buffer[bo : bo + CHUNK_SIZE] 
@@ -90,7 +94,7 @@ if do_write:
             #    crc = zlib.crc32(payload) & 0xffffffff
             #    ser.write(crc.to_bytes(4,"little"))
                 ser.write(payload)
-            ser.write("$bf".encode())
+            ser.write(BYTES_FINISHED)
 
                     
             time_out1 = time.time()
@@ -128,12 +132,6 @@ if do_write:
                 
             elif 'wc' in line:
                 break
-
-
-        #print(F"page {addr}")
-        
-        time.sleep(0.01)
-
         
         addr+=1
         offset+=1
@@ -154,16 +152,7 @@ if do_write:
     log.write(f"Elapsed Time: {elapsed_time:.2f} seconds, {elapsed_time/3600.0:.2f} hours.\n")
 
     time.sleep(0.01)
-    ser.write("$NAND_ID$msgEnd".encode()) # clean it up
-    time.sleep(0.1)
-    time.sleep(0.01)
-    ser.write("$NAND_ID$msgEnd".encode()) # clean it up
-    time.sleep(0.1)    
-    time.sleep(0.01)
-    ser.write("$NAND_ID$msgEnd".encode()) # clean it up
-    time.sleep(0.1)
-    time.sleep(0.01)
-    ser.write("$NAND_ID$msgEnd".encode()) # clean it up
+    ser.write("$NAND_ID$msgEnd".encode()) # buffer to be safe
     time.sleep(0.1)
     
 if do_test_write:
@@ -235,8 +224,8 @@ if do_block_SHA:
             if("SHA: " in line):
                 sha256 = line.split("SHA: ", 1)[1]
                 if(sha256 == original_sha256):
-                    print(F"SHA good at {addr}\norig: {original_sha256}\nchip: {sha256}")
-                    log.write(F"SHA good at {addr}\norig: {original_sha256}\nchip: {sha256}\n")
+                    print(F"SHA match for block {addr}\norig: {original_sha256}\nchip: {sha256}")
+                    log.write(F"SHA match for block {addr}\norig: {original_sha256}\nchip: {sha256}\n")
 
                 else:
                     print(F"SHA Mismatch: block {addr}\noriginal: {original_sha256}\nchip: {sha256}")

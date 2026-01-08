@@ -10,6 +10,10 @@ typedef uint32_t u32;
 #define PAGE_SIZE_32 528
 #define CHUNK_SIZE 264
 
+
+#define BYTES_START "$bs"
+#define BYTES_FINISHED "$bf"
+
 extern  u8 SHA[32];
 extern int buffer_bytes;
 extern  u8 pageBuffer[];

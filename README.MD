@@ -14,7 +14,5 @@ Raspberry Pi Pico controller for HY27UF084G2B/M 512MByte parallel NAND flash. Th
 
 ## Usage
 ### Python Scripts
-- **dump.py**: automatically dumps entire chip to `nand.bin`. Takes approx. >10hrs.
-- **program.py**: programs NAND chip from file input and computes SHA256 per-block
-### Raw Usage
-TODO
+- **dump.py**: automatically dumps entire chip to `nand.bin`. Takes ~20min.
+- **program.py**: programs NAND chip from file input and computes SHA256 per-block and per-page. takes ~1.5hrs.

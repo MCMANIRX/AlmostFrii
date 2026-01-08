@@ -2,3 +2,12 @@ build
 log/
 fwd.bin
 !.vscode/*
+nand.bin
+misc
+nand_dumps
+d.py
+crc.h
+program-repair.py
+program2.py
+band.bin
+Pico-NAND-Driver

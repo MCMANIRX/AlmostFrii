@@ -36,8 +36,8 @@ pico_sdk_init()
 # Add executable. Default name is the project name, version 0.1
 
 add_executable(wii-nand-interf 
-main.c
-commands.c )
+${CMAKE_CURRENT_LIST_DIR}/main.c
+${CMAKE_CURRENT_LIST_DIR}/commands.c )
 
 pico_generate_pio_header(wii-nand-interf ${CMAKE_CURRENT_LIST_DIR}/pio/read_io_sm.pio)
 

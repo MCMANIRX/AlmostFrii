@@ -12,9 +12,11 @@ Raspberry Pi Pico controller for Nintendo Wii NAND, HY27UF084G2B/M 512MByte para
 
 - On-chip SHA256 calculation for individual pages or blocks
 
+- Logging for NAND dumps and programs
+
 ## Notes
 
-- Page size: **2KB** (+64 ECC bytes, so **2112 bytes** in total)
+- Page size: **2KB** (2048 valid data +64 ECC bytes, so **2112 bytes** in total)
 
 - Block Size: 64 Pages = **128KB** (**135168 bytes total**) 
 - Block count: **4096**
@@ -23,11 +25,49 @@ Raspberry Pi Pico controller for Nintendo Wii NAND, HY27UF084G2B/M 512MByte para
 
 ### Python Scripts
 
-- **dump.py**: automatically dumps entire chip to `nand.bin`. Takes ~20min.
+- **nand_dump.py**: automatically dumps entire chip to `nand_dumps/nand-{epoch}.bin`. Takes ~20min.
 
 - **program.py**: programs NAND chip from file input and computes SHA256 per-block and per-page. takes ~1.5hrs.
 
-### `program.py` Arguments
+## `nand_dump.py` Arguments
+
+- `P` sets the port to use
+
+- `l` sets the **l**ength of blocks to read (default 4096)
+
+- `a` sets the block **a**ddress **in hex** to begin reading (default 0)
+
+- `d` enables command **d**ebug mode, quitting program before NAND interfacing begins
+
+## `nand_dump.py` Examples
+
+### Example 1
+ ```bash
+ python ./nand_dump.py -P"/dev/tty.usbmodem101" -l800 -a800
+ ```
+
+- Dumps 800 pages of NAND starting from block address 0x800 (2048) using `/dev/tty.usbmodem101`
+
+**output:**
+
+```bash
+Reading 800 blocks from start address 2048 with port COM13.
+```
+
+### Example 2
+ ```bash
+ python ./nand_dump.py -P"/dev/tty.usbmodem101"
+ ``` 
+
+- Dumps entire NAND using `/dev/tty.usbmodem101`
+
+**output:**
+
+```bash
+Reading 4096 blocks from start address 0 with port COM13.
+```
+
+## `nand_program.py` Arguments
 
 - `w` enables write mode
 
@@ -42,13 +82,16 @@ Raspberry Pi Pico controller for Nintendo Wii NAND, HY27UF084G2B/M 512MByte para
 
 - `l` sets the **l**ength of write in blocks (default 0)
 
-- `a` sets the block **a**ddress to begin writing (default 0)
+- `a` sets the block **a**ddress **in hex** to begin writing (default 0)
 
 - `d` enables command **d**ebug mode, quitting program before NAND interfacing begins
 
-### `program.py` Example
+## `nand_program.py` Examples
 
-**example:** `python ./program.py ./path-to-file -wpbd -l60 -aA8 -P"/dev/tty.usbmodem101"`  
+### Example 1
+ ```bash
+ python ./nand_program.py ./path-to-file -wpbd -l60 -aA8 -P"/dev/tty.usbmodem101"
+ ```  
 
 - Starting from the address of block `0xA8`, will write 60 blocks to NAND using port `/dev/tty.usbmodem101` provided file and computes per-block and per-page SHA256, but exits program after printing debug message.
 

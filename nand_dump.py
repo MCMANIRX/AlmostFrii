@@ -4,13 +4,11 @@ import hashlib
 import pathlib
 import console_commands as cc
 import sys
-addr = 0
-sector = 0
-start_time = time.time()
 
-BLOCKS = 8
-PAGES = 64
+
+PAGE_COUNT = 64
 PAGE_SIZE = 2112
+BLOCK_COUNT = 4096
 
 BLOCK_SIZE = (2112 * 64) # 0x21000
 
@@ -18,7 +16,12 @@ BLOCK_SIZE = (2112 * 64) # 0x21000
 BYTES_START = "$bs\r\n".encode()
 FILENAME = F'nand_dumps/nand-{time.time()}.bin'
 
+start_time = time.time()
+
+nblocks = BLOCK_COUNT
+block_addr = 0
 serial_port = ""
+debug = False
 
 if len(sys.argv)>1:
     for q in range (1, len(sys.argv)):
@@ -32,10 +35,40 @@ if len(sys.argv)>1:
                 option = arg.split("P")
                 serial_port = option[1]
                 continue
+            
+            if 'l' in option:
+                option = arg.split("l")
+                try:
+                    nblocks = int(option[1])
+                except ValueError:
+                    print("ERROR: invalid block number")
+                    quit()
+                continue
+            
+            if 'a' in option:
+                option = arg.split("a")
+                try:
+                    block_addr = int(option[1],16)
+                except ValueError:
+                    print("ERROR: invalid address")
+                    quit()
+                continue
+            
+            if 'd' in option:
+                debug = True
 
 if not serial_port:
     print(f"ERROR: No serial port given")
     quit()
+
+
+opt_str = F"Reading {nblocks} blocks from start address {block_addr} with port {serial_port}."
+    
+print(opt_str) 
+if debug:
+    quit()
+    
+
 
 ser = serial.Serial(serial_port, 115200,timeout=3, write_timeout= 3)
 
@@ -47,11 +80,14 @@ f = open(FILENAME, 'wb')
 # compute per-block hash
 do_block_SHA = True
 
-
+# setup values 
+addr = block_addr *PAGE_COUNT
+offset = addr
+end_offset = (nblocks *PAGE_COUNT) + addr
+sector = block_addr
 
 last_time = time.time()
-addr = 0
-for i in range(0,BLOCKS*PAGES):
+while addr < end_offset:
 
 
     if(addr%(64)==0):
@@ -96,15 +132,17 @@ print(f"Elapsed Time: {elapsed_time:.2f} seconds, {elapsed_time/3600.0:.2f} hour
 
 if do_block_SHA:
     start = time.time()
-    log = open('nand_dumps/log-'+str(int(time.time()))+".txt", 'w')
+    log = open(F'{FILENAME}_log.txt', 'w')
     f = open(FILENAME, 'rb') 
-
     print("=====SHA VERIFICATION (block)=====\n")    
     log.write("=====SHA VERIFICATION (block)=====\n")    
     
-    addr = 0
-    offset = 0 
-    for i in range(0,BLOCKS):
+    
+    addr = block_addr
+    offset = 0
+    end_offset = nblocks + addr
+    
+    while addr < end_offset:
         f.seek(offset*(BLOCK_SIZE))
         original_sha256 = hashlib.sha256(f.read(BLOCK_SIZE)).hexdigest()
         
@@ -125,6 +163,7 @@ if do_block_SHA:
                     print(F"SHA Mismatch: block {addr}\noriginal: {original_sha256}\nchip: {sha256}")
                     log.write(F"SHA Mismatch: block {addr}\noriginal: {original_sha256}\nchip: {sha256}\n")
 
+                #print(F"block {addr} SHA: {sha256}")
                 break
             if time.time() > 1 +time_out:
                 print("ERROR: timeout on SHA256")
@@ -136,6 +175,8 @@ if do_block_SHA:
         
         offset+=1
         addr+=1
+
+        
 
         
 

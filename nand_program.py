@@ -140,8 +140,8 @@ print(opt_str)
 if debug:
     quit()
 
-pathlib.Path("log").mkdir(parents=True, exist_ok=True)
-log = open('log/log-'+str(int(time.time()))+".txt", 'w')
+pathlib.Path("program_log").mkdir(parents=True, exist_ok=True)
+log = open('program_log/log-'+str(int(time.time()))+".txt", 'w')
 log.write(opt_str)
 
 ser = serial.Serial(serial_port, 115200,timeout=3, write_timeout= 1, xonxoff=False, rtscts=False, dsrdtr=False)
@@ -157,7 +157,7 @@ time.sleep(0.5)
 addr = block_addr *PAGE_COUNT
 offset = addr
 end_offset = (nblocks *PAGE_COUNT) + addr
-sector = int(addr/PAGE_COUNT)
+sector = block_addr
 f.seek(offset)
 
 start_time = time.time()
@@ -172,6 +172,8 @@ if do_write and not do_test_write:
             #print(sha256)
             if sha256 == EMPTY_BLOCK:
                 print(F"skipping null block {sector}")
+                log.write(F"skipping null block {sector}\n")
+
                 sector+=1
                 addr+=PAGE_COUNT
                 offset+=PAGE_COUNT

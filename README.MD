@@ -34,6 +34,7 @@ Raspberry Pi Pico controller for Nintendo Wii NAND, HY27UF084G2B/M 512MByte para
 - `t` enables **t**est write mode ("writes pattern `0xAD`)
 
 - `p` enables per-**p**age SH256A calculation
+- `P` sets the port to use
 
 - `b` enables per-**b**lock SHA256 calculation (enabled by default)
 
@@ -47,9 +48,9 @@ Raspberry Pi Pico controller for Nintendo Wii NAND, HY27UF084G2B/M 512MByte para
 
 ### `program.py` Example
 
-**example:** `python ./program.py ./path-to-file -wpbd -l60 -aA8`  
+**example:** `python ./program.py ./path-to-file -wpbd -l60 -aA8 -P"/dev/tty.usbmodem101"`  
 
-- Starting from the address of block `0xA8`, will write 60 blocks to NAND using provided file and computes per-block and per-page SHA256, but exits program after printing debug message.
+- Starting from the address of block `0xA8`, will write 60 blocks to NAND using port `/dev/tty.usbmodem101` provided file and computes per-block and per-page SHA256, but exits program after printing debug message.
 
 **output:**
 

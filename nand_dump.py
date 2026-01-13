@@ -3,7 +3,7 @@ import time
 import hashlib
 import pathlib
 import console_commands as cc
-
+import sys
 addr = 0
 sector = 0
 start_time = time.time()
@@ -17,7 +17,28 @@ BLOCK_SIZE = (2112 * 64) # 0x21000
 
 BYTES_START = "$bs\r\n".encode()
 FILENAME = F'nand_dumps/nand-{time.time()}.bin'
-ser = serial.Serial("COM13", 115200,timeout=3,write_timeout=3)
+
+serial_port = ""
+
+if len(sys.argv)>1:
+    for q in range (1, len(sys.argv)):
+        arg = sys.argv[q]
+        
+        if '-' in arg:
+            option = arg.split('-')[1]
+
+
+            if 'P' in option:
+                option = arg.split("P")
+                serial_port = option[1]
+                continue
+
+if not serial_port:
+    print(f"ERROR: No serial port given")
+    quit()
+
+ser = serial.Serial(serial_port, 115200,timeout=3, write_timeout= 3)
+
 
 pathlib.Path("nand_dumps").mkdir(parents=True, exist_ok=True)
 f = open(FILENAME, 'wb')

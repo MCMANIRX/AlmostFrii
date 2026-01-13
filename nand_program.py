@@ -21,19 +21,15 @@ EMPTY_BLOCK = "49a871401dfd0c0897d7beb7956fde1c59eb86c446f627e1dda9c6e58be67118"
 sector = 0
 
 
-pathlib.Path("log").mkdir(parents=True, exist_ok=True)
-log = open('log/log-'+str(int(time.time()))+".txt", 'w')
-
 
 #f = open('fwd.bin', 'rb') # input NAND image
 
 
-ser = serial.Serial("COM13", 115200,timeout=3, write_timeout= 1, xonxoff=False, rtscts=False, dsrdtr=False)
 
 time.sleep(0.5)
 last_time = time.time()
 
-
+block_addr = 0x0
 addr = 0x0
 offset = 0x0
 
@@ -47,7 +43,7 @@ debug = False
 
 f  = []
 nand_file = ""
-
+serial_port = ""
 
 if len(sys.argv)>1:
     for q in range (1, len(sys.argv)):
@@ -55,6 +51,12 @@ if len(sys.argv)>1:
         
         if '-' in arg:
             option = arg.split('-')[1]
+
+
+            if 'P' in option:
+                option = arg.split("P")
+                serial_port = option[1]
+                continue
             
             if 'l' in option:
                 option = arg.split("l")
@@ -68,11 +70,13 @@ if len(sys.argv)>1:
             if 'a' in option:
                 option = arg.split("a")
                 try:
-                    addr = int(option[1],16)
+                    block_addr = int(option[1],16)
                 except ValueError:
                     print("ERROR: invalid address")
                     quit()
                 continue
+
+
             
             if 'w' in option and not do_test_write:
                 do_write = True
@@ -105,7 +109,11 @@ if len(sys.argv)>1:
 if not nand_file:
     print("ERROR: No NAND file")
     quit()
-    
+
+if not serial_port:
+    print(f"ERROR: No serial port given")
+    quit()
+
 opt_str = "\nDoing "
 if do_test_write:
     opt_str+="test write "
@@ -126,30 +134,42 @@ if do_block_SHA or do_page_SHA:
     opt_str+="SHA256 calculation"
 
 opt_str+=F", starting at block address {hex(addr)} for {nblocks} blocks"
+opt_str+=F" via port {serial_port}"
     
 print(opt_str) 
-log.write(opt_str)
 if debug:
     quit()
+
+pathlib.Path("log").mkdir(parents=True, exist_ok=True)
+log = open('log/log-'+str(int(time.time()))+".txt", 'w')
+log.write(opt_str)
+
+ser = serial.Serial(serial_port, 115200,timeout=3, write_timeout= 1, xonxoff=False, rtscts=False, dsrdtr=False)
+
+
+
+
+
 time.sleep(0.5)
 
 
 # setup values 
-addr*=BLOCK_SIZE
+addr = block_addr *PAGE_COUNT
 offset = addr
-nrange = 0x40 * nblocks
-
-
+end_offset = (nblocks *PAGE_COUNT) + addr
+sector = int(addr/PAGE_COUNT)
+f.seek(offset)
 
 start_time = time.time()
 
 if do_write and not do_test_write:
     log.write("=====FILE WRITE=====\n")
-    while addr < nrange:
+    while addr < end_offset:
 
 
         if(addr%(0x40)==0):
             sha256 = hashlib.sha256(f.read(BLOCK_SIZE)).hexdigest()
+            #print(sha256)
             if sha256 == EMPTY_BLOCK:
                 print(F"skipping null block {sector}")
                 sector+=1
@@ -267,7 +287,7 @@ if do_test_write and not do_write:
     payload = ('&{:X}'.format(0xAD)+cc.SET_W_TST_VAL+cc.MESSAGE_END).encode()
     ser.write(payload)
     time.sleep((0.01))
-    for i in range(0,nrange):
+    for i in range(0,end_offset):
         payload = ('&{:X}'.format(i)+cc.TEST_W+cc.MESSAGE_END).encode()
         ser.write(payload)
 
@@ -279,12 +299,12 @@ if do_test_write and not do_write:
 if do_page_SHA:
     start_time = time.time()
     log.write("=====SHA VERIFICATION (page)=====\n")    
-    f.seek(0x0)
-    addr = 0
-    offset = 0 
-    for i in range(0,nblocks*PAGE_COUNT):
+    addr = block_addr *PAGE_COUNT
+    offset = addr
+    end_offset = (nblocks *PAGE_COUNT) + addr
+    while addr < end_offset:
         f.seek(offset*(PAGE_SIZE))
-        print(hex(offset*PAGE_SIZE))
+        #print(hex(offset*PAGE_SIZE))
         original_sha256 = hashlib.sha256(f.read(PAGE_SIZE)).hexdigest()
         
         payload = ('&{:X}'.format(addr)+cc.PAGE_SHA+cc.MESSAGE_END).encode()
@@ -328,9 +348,10 @@ if do_page_SHA:
 if do_block_SHA:
     start_time = time.time()
     log.write("=====SHA VERIFICATION (block)=====\n")    
-    addr = 0
-    offset = 0 
-    for i in range(0,nblocks):
+    addr = block_addr
+    offset = addr
+    end_offset = nblocks + addr
+    while addr < end_offset:
         f.seek(offset*(BLOCK_SIZE))
         original_sha256 = hashlib.sha256(f.read(BLOCK_SIZE)).hexdigest()
         
@@ -381,5 +402,6 @@ if do_block_SHA:
     print(f"Elapsed Time: {elapsed_time:.2f} seconds, {elapsed_time/3600.0:.2f} hours.")
     
 ser.close()
+f.close()
 
 

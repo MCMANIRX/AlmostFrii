@@ -23,7 +23,6 @@ if (EXISTS ${picoVscode})
     include(${picoVscode})
 endif()
 # ====================================================================================
-set(PICO_BOARD pico_w CACHE STRING "Board type")
 
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
@@ -33,8 +32,8 @@ project(wii-nand-interf C CXX ASM)
 # Initialise the Raspberry Pi Pico SDK
 pico_sdk_init()
 
-# Add executable. Default name is the project name, version 0.1
 
+# Add executable. Default name is the project name, version 0.1
 add_executable(wii-nand-interf 
 ${CMAKE_CURRENT_LIST_DIR}/main.c
 ${CMAKE_CURRENT_LIST_DIR}/commands.c )
@@ -49,14 +48,21 @@ pico_set_program_version(wii-nand-interf "0.1")
 pico_enable_stdio_uart(wii-nand-interf 0)
 pico_enable_stdio_usb(wii-nand-interf 1)
 
-# Add the standard library to the build
-target_link_libraries(wii-nand-interf
-        pico_stdlib
-        pico_mbedtls
-        pico_cyw43_arch_none
-        hardware_dma
 
-                )
+if (PICO_BOARD STREQUAL "pico_w")
+    message(STATUS "Building for Pico W")
+    target_compile_definitions(wii-nand-interf PRIVATE PICO_W_BOARD)
+    target_link_libraries(wii-nand-interf
+        pico_cyw43_arch_none
+    )
+endif()
+
+target_link_libraries(wii-nand-interf
+    pico_stdlib
+    pico_mbedtls
+    hardware_dma
+    hardware_pio
+)
 
 # Add the standard include files to the build
 target_include_directories(wii-nand-interf PRIVATE

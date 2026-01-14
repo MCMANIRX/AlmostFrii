@@ -4,32 +4,32 @@
 #include <math.h>
 #include "crc.h"
 #include <string.h>
-#include "pico/cyw43_arch.h"
 #include "tusb.h"
+
+#ifdef PICO_W_BOARD
+    #include "pico/cyw43_arch.h"
+#else
+    #define LED_PIN 25 
+#endif
 
 
 #include "commands.h"
 
 
-
+void toggle_LED(bool value)
+{
+#ifdef PICO_W_BOARD
+    // Pico W uses the CYW43 WiFi chip LED
+    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, value);
+#else
+    // Regular Pico uses GPIO LED
+    gpio_put(LED_PIN, value);
+#endif
+}
 
 
 u8 str[100] = {0};
 u8 str_idx = 0;
-
-
-typedef struct {
-    char txt[24];
-    int len;
-} MARKER;
-
-
-static void init_marker(MARKER * marker, char *_str) {
-    memset(marker->txt,0,24);
-    marker->len = 0;
-    strcpy(marker->txt,_str);
-    marker->len = strlen(_str);
-}
 
 
 bool marker_found(char *marker) {
@@ -66,7 +66,7 @@ u32 decompose_addr() {
 
     if((!(start && end)) || abs( ((int)(((u8*)start)-str))  -((int)(((u8*)end)-str)) ) <= 1) {
 
-        cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
+        toggle_LED(1);
         while(1);
     }
 
@@ -242,7 +242,7 @@ void console() {
 
                 if(!writeComplete)
                     while(1) {
-                        cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, flicker);
+                        toggle_LED(flicker);
                         flicker = !flicker;
                         sleep_ms(100);
                         printf("%s\n",failMsg);
@@ -352,14 +352,18 @@ int main()
     stdio_init_all();
 
 
-  //  pageBuffer = str;
 
-    
-    // Initialise the Wi-Fi chip
-    if (cyw43_arch_init()) {
-        printf("Wi-Fi init failed\n");
-        return -1;
-    }
+    #ifdef PICO_W_BOARD
+
+        // Initialise the Wi-Fi chip
+        if (cyw43_arch_init()) {
+            printf("Wi-Fi init failed\n");
+            return -1;
+        }
+    #else
+        gpio_init(LED_PIN);
+        gpio_set_dir(LED_PIN,GPIO_OUT);
+    #endif
 
     init_gpio();
 
@@ -368,11 +372,7 @@ int main()
     }
         sleep_ms(100);
 
-   // read_page((12 &0x3ffff)<<12);
 
     console();
-
-  // for(int i = 0; i < PAGE_COUNT * BLOCK_COUNT; ++ i)
-   //     read_page();
 
 }

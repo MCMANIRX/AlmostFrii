@@ -42,13 +42,9 @@ These commands are intended to be typed into a serial monitor such as PuTTY.
 
 - `$NANDErase$me` - erases entire NAND chip
 
+- `$pwt$me` - write page full of test string `quickbrownfox` 
 
-- `$swt$me` - set test write byte value
-    -usage: `&AA$swt$me` sets test byte value to `0xAA`
-
-- `$pwt$me` - set page address to write test values to 
-
-    - usage: `&3F$pwt$me` writes page `0x3F` of test byte value 
+    - usage: `&3F$pwt$me` writes page `0x3F` of test string
 
 - `$bsha$me` - compute SHA256 hash of block at given address
     - usage: `&3F$bsha$me` computes SHA256 hash of block `0x3F`
@@ -132,4 +128,5 @@ Reading 4096 blocks from start address 0 with port COM13.
 ```bash
 Doing write from image ./path-to-file with per-page and per-block SHA256 calculation, starting at block address 0xa8 for 60 blocks
 ```
+
 \*program exits\*

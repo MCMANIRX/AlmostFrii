@@ -23,6 +23,38 @@ Raspberry Pi Pico controller for Nintendo Wii NAND, HY27UF084G2B/M 512MByte para
 
 ## Usage
 
+### Serial Commands
+
+These commands are intended to be typed into a serial monitor such as PuTTY. 
+
+ 
+**NOTE: ALL HEX ADDRESSES MUST BE UPPERCASE!!**
+
+- `$id$me` - print out NAND chip ID (should be: `ad dc 10 95`) 
+
+- `$pr$me` - read a page, with hex address input
+
+    - usage: `&3F$pr$me` reads page `0x3F`
+
+- `$BLOCKErase$me` - erase block, with hex address input
+
+    - usage: `&3F$BLOCKErase$me` erases page `0x3F`
+
+- `$NANDErase$me` - erases entire NAND chip
+
+
+- `$swt$me` - set test write byte value
+    -usage: `&AA$swt$me` sets test byte value to `0xAA`
+
+- `$pwt$me` - set page address to write test values to 
+
+    - usage: `&3F$pwt$me` writes page `0x3F` of test byte value 
+
+- `$bsha$me` - compute SHA256 hash of block at given address
+    - usage: `&3F$bsha$me` computes SHA256 hash of block `0x3F`
+
+- `$psha$me` - compute SHA256 hash of page at given address
+    - usage: `&3F$psha$me` computes SHA256 hash of page `0x3F`
 ### Python Scripts
 
 - **nand_dump.py**: automatically dumps entire chip to `nand_dumps/nand-{epoch}.bin`. Takes ~20min.

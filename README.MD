@@ -1,6 +1,8 @@
-# Pico-NAND-Driver
+# AlmostFrii
 
-Raspberry Pi Pico controller for Nintendo Wii NAND, HY27UF084G2B/M 512MByte parallel NAND flash. This project currently only supports 1:1 NAND flashing i.e. no ECC calculation.
+Raspberry Pi Pico controller for Nintendo Wii NAND, HY27UF084G2B/M 512MByte parallel NAND flash or equivalents. This project currently only supports 1:1 NAND flashing i.e. no ECC calculation.
+
+![image](./img/circuit.png)
 
 ## Features
 
@@ -8,7 +10,7 @@ Raspberry Pi Pico controller for Nintendo Wii NAND, HY27UF084G2B/M 512MByte para
 
 - Read manufacturer code
 
-- Block and full chip erase
+- Block (0x00->0xFFF) and full chip erase
 
 - On-chip SHA256 calculation for individual pages or blocks
 
@@ -21,36 +23,69 @@ Raspberry Pi Pico controller for Nintendo Wii NAND, HY27UF084G2B/M 512MByte para
 - Block Size: 64 Pages = **128KB** (**135168 bytes total**) 
 - Block count: **4096**
 
-## Usage
+## Hardware Setup
 
-### Serial Commands
+This project requires:
+1. Raspberry Pi Pico (basic or W)
+2. TSOP48 breakout 
+3. [Wii-supported NAND chip](https://wiibrew.org/wiki/Hardware/NAND#Supported_chips)
+4. Recommended 0.1uF capacitor across Vss and Vcc.
 
-These commands are intended to be typed into a serial monitor such as PuTTY. 
+### Wiring Guide
 
- 
-**NOTE: ALL HEX ADDRESSES MUST BE UPPERCASE!!**
+| Pin  | Pico | NAND     |
+|-------|-----|----------|
+| R/B | GPIO 11  | 7 |
+| RE   | GPIO 12  | 8   |
+| CE | GPIO 13  | 9    |
+| Vcc | Pin 36  | 12, 37 |
+| Vss   | Pin 38  | 13, 36   |
+| CLE | GPIO 16  | 18 |
+| ALE   | GPIO 17  | 19   |
+| WE | GPIO 18  | 20    |
+| WP | GPIO 19  | 21    |
+| IO0 | GPIO 2  | 29    |
+| IO1 | GPIO 3  | 30    |
+| IO2 | GPIO 4  | 31    |
+| IO3 | GPIO 5  | 32    |
+| IO4 | GPIO 6  | 41    |
+| IO5 | GPIO 7  | 42    |
+| IO6 | GPIO 8  | 43    |
+| IO7 | GPIO 9  | 44    |
 
-- `$id$me` - print out NAND chip ID (should be: `ad dc 10 95`) 
+## Basic Usage
 
-- `$pr$me` - read a page, with hex address input
+### Dumping NAND
 
-    - usage: `&3F$pr$me` reads page `0x3F`
+To dump the full NAND, run:
 
-- `$BLOCKErase$me` - erase block, with hex address input
+ ```bash
+ python ./nand_dump.py -P"/your/port"
+ ``` 
+replacing `/your/port` with whatever serial port your Pi Pico shows up as.
 
-    - usage: `&3F$BLOCKErase$me` erases page `0x3F`
+### Writing NAND
 
-- `$NANDErase$me` - erases entire NAND chip
+When writing a NAND backup to another NAND, it is probably a good idea to erase the chip first.
 
-- `$pwt$me` - write page full of test string `quickbrownfox` 
+In a serial monitor such as the Arduino IDE, VS Code serial monitor, PuTTY, etc. enter
 
-    - usage: `&3F$pwt$me` writes page `0x3F` of test string
+```bash
+$NANDErase$me
+```
 
-- `$bsha$me` - compute SHA256 hash of block at given address
-    - usage: `&3F$bsha$me` computes SHA256 hash of block `0x3F`
+and wait for the chip to complete full erasure. Then, **after closing the monitor**, run
 
-- `$psha$me` - compute SHA256 hash of page at given address
-    - usage: `&3F$psha$me` computes SHA256 hash of page `0x3F`
+ ```bash
+ python ./nand_program.py ./path-to-file -wb -4096 -a0 -P"/your/port"
+ ``` 
+
+ again replacing `/your/port`, and `./path-to-file` with the path to your NAND backup.
+
+
+
+## Advanced Usage
+
 ### Python Scripts
 
 - **nand_dump.py**: automatically dumps entire chip to `nand_dumps/nand-{epoch}.bin`. Takes ~20min.
@@ -111,6 +146,7 @@ Reading 4096 blocks from start address 0 with port COM13.
 - `l` sets the **l**ength of write in blocks (default 0)
 
 - `a` sets the block **a**ddress **in hex** to begin writing (default 0)
+    - **NOTE:** this begins writing the NAND image relative to 0 at the specified address i.e. the arguments `-a8 -l8` will write blocks 8-15 from the selected NAND image, skipping blocks 0-7.  
 
 - `d` enables command **d**ebug mode, quitting program before NAND interfacing begins
 
@@ -130,3 +166,36 @@ Doing write from image ./path-to-file with per-page and per-block SHA256 calcula
 ```
 
 \*program exits\*
+
+### Serial Commands
+
+These commands are intended to be typed into a serial monitor such as PuTTY. 
+
+ 
+**NOTE: ALL HEX ADDRESSES MUST BE UPPERCASE!!**
+
+- `$id$me` - print out NAND chip ID (should be: `ad dc 10 95`) 
+
+- `$pr$me` - read a page, with hex address input
+
+    - usage: `&3F$pr$me` reads page `0x3F`
+
+- `$BLOCKErase$me` - erase block, with hex address input
+
+    - usage: `&3F$BLOCKErase$me` erases page `0x3F`
+
+- `$NANDErase$me` - erases entire NAND chip
+
+- `$pwt$me` - write page full of test string `quickbrownfox` 
+
+    - usage: `&3F$pwt$me` writes page `0x3F` of test string
+
+- `$bsha$me` - compute SHA256 hash of block at given address
+    - usage: `&3F$bsha$me` computes SHA256 hash of block `0x3F`
+
+- `$psha$me` - compute SHA256 hash of page at given address
+    - usage: `&3F$psha$me` computes SHA256 hash of page `0x3F`
+
+    ## Credits
+
+    This project would not be possible without the incredible documentation and reverse-engineering efforts of the people at [wiibrew.org](https://wiibrew.org/wiki/Hardware/NAND)

@@ -40,10 +40,10 @@ This project requires:
 | CE | GPIO 13  | 9    |
 | Vcc | Pin 36  | 12, 37 |
 | Vss   | Pin 38  | 13, 36   |
-| CLE | GPIO 16  | 18 |
-| ALE   | GPIO 17  | 19   |
-| WE | GPIO 18  | 20    |
-| WP | GPIO 19  | 21    |
+| CLE | GPIO 18  | 16 |
+| ALE   | GPIO 19  | 17   |
+| WE | GPIO 20  | 18    |
+| WP | GPIO 21  | 19    |
 | IO0 | GPIO 2  | 29    |
 | IO1 | GPIO 3  | 30    |
 | IO2 | GPIO 4  | 31    |

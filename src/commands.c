@@ -156,7 +156,6 @@ void init_pio_dma() {
 
     
 
-    //static uintptr_t bufferPtr = (uintptr_t)pageBuffer;
 
     rx_dma = dma_claim_unused_channel(true);
     reset_rx_dma = dma_claim_unused_channel(true);
@@ -250,10 +249,6 @@ void init_gpio() {
 
 void send_cmd(u8 cmd) {
 
-    //for(int i = 0; i < NUM_GPIO; ++i) 
-   //     gpio_put(io[i], (cmd >> i)&1);
-
-   // gpio_set_mask((cmd << 2)&(0x3fc));
     gpio_put_masked(io_mask,(((u32)cmd)<<2));
 
     gpio_put(CLE,1);
@@ -271,13 +266,6 @@ void send_cmd(u8 cmd) {
 // cache row address
 void cache_addr(u32 addr, u8 * frames) {
 
-/*
-    frames[0] = addr&0xff;
-    frames[1] = (addr >> 8) & 0xf;
-    frames[2] = (addr >> 12) & 0xff;
-    frames[3] = (addr >> 20) & 0xff;
-    frames[4] = (addr >> 28) & 0x3;
-    */
 
     frames[0] = 0;
     frames[1] = 0;
@@ -322,14 +310,14 @@ static inline void send_row_addr(u8 * frames) {
     }
 
 }
-u8 *test_string = "quickbrownfox";
-u8 idx = 0;
+
 static inline void send_data(u8 * frames, size_t len, bool test, u8 test_val) {
     
     gpio_clr_mask(io_mask);
 
-    if(test)
-
+    if(test){
+        u8 *test_string = "quickbrownfox";
+        u8 idx = 0;
         for(size_t i = 0; i < len; ++i) {
             gpio_put_masked(io_mask,(((u32)test_string[idx++])<<2));
             idx%=13;
@@ -339,7 +327,7 @@ static inline void send_data(u8 * frames, size_t len, bool test, u8 test_val) {
             gpio_clr_mask(io_mask);
         }
 
-    else 
+    } else 
         for(size_t i = 0; i < len; ++i) {
             gpio_put_masked(io_mask,(((u32)frames[i])<<2));
             gpio_put(WE_,0);
@@ -353,7 +341,7 @@ static inline void send_data(u8 * frames, size_t len, bool test, u8 test_val) {
 
 u8 read_io() {
     return (u8)((gpio_get_all() & io_mask) >> 2);
-}
+    }
 
 void read_id() {
     gpio_put(WP_,0);
@@ -429,8 +417,8 @@ void read_status() {
 
 
 void read_page(u32 addr) {
-    gpio_put(WP_,0);
 
+    gpio_put(WP_,0);
     gpio_put(RE_,1);
     gpio_put(ALE,0);
     gpio_put(CE_,0);
@@ -454,6 +442,8 @@ void read_page(u32 addr) {
 
     while(!gpio_get(RB));
     wait_16();
+
+    // ###### read code below too slow! use PIO
 
    /*/ for(int i = 0; i < PAGE_SIZE; ++i) {
         gpio_put(RE_,0);

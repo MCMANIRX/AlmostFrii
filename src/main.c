@@ -55,6 +55,27 @@ bool marker_found(char *marker) {
     return false;
 }
 
+inline u32 addr_to_u32(int start_idx, int end_idx) {
+
+        u32 addr = 0;
+        for (int i = start_idx + 1; i < end_idx; i++) {
+        char c = str[i];
+
+        u8 value;
+        if (c >= '0' && c <= '9')
+            value = c - '0';
+        else if (c >= 'A' && c <= 'F')
+            value = c - 'A' + 10;
+        else if (c >= 'a' && c <= 'f')
+            value = c - 'a' + 10;
+        else
+            break; // invalid hex
+
+        addr = (addr << 4) | value;
+    }
+
+}
+
 
 u32 decompose_addr() {
 
@@ -74,22 +95,8 @@ u32 decompose_addr() {
     int end_idx = (int)((u8*)end-str);
 
 
+    addr = addr_to_u32(start_idx,end_idx);
 
-    for (int i = start_idx + 1; i < end_idx; i++) {
-        char c = str[i];
-
-        u8 value;
-        if (c >= '0' && c <= '9')
-            value = c - '0';
-        else if (c >= 'A' && c <= 'F')
-            value = c - 'A' + 10;
-        else if (c >= 'a' && c <= 'f')
-            value = c - 'a' + 10;
-        else
-            break; // invalid hex
-
-        addr = (addr << 4) | value;
-    }
 
    // printf("addr: %x\n",addr);
 
@@ -97,33 +104,7 @@ u32 decompose_addr() {
 }
 
 
-u32 to_u32(char *buf, int len) {
-
-    char c = '\0';
-    u32 addr = 0;
-
-    for (int i = 0; i < len; i++) {
-        char c = str[i];
-
-        u8 value;
-        if (c >= '0' && c <= '9')
-            value = c - '0';
-        else if (c >= 'A' && c <= 'F')
-            value = c - 'A' + 10;
-        else if (c >= 'a' && c <= 'f')
-            value = c - 'a' + 10;
-        else
-            break; // invalid hex
-
-        addr = (addr << 4) | value;
-    }
-
-
-    return addr;
-}
-
-
-int read_byte_blocking(void) {
+inline int read_byte_blocking(void) {
     uint8_t b;
     while (tud_cdc_read(&b, 1) != 1) {}
     return b;
@@ -275,16 +256,6 @@ void console() {
                     continue;
                  }
 
-                 /*if(marker_found("$pageWrite")) {
-
-                    //str_idx-=11; // remove 0xd
-
-                    //if(buffer_bytes==PAGE_SIZE){
-                    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
-
-                        //write_page(write_addr,str,PAGE_SIZE,false,0x0); // buffer write
-                   // }
-                }*/
 
                 else if(marker_found(SET_W_ADDR)) {
                     write_addr = decompose_addr()&0x3ffff;
@@ -309,7 +280,6 @@ void console() {
                 }
 
                 else if(marker_found(READ_PAGE)){
- 
                     read_page((decompose_addr()&0x3ffff));   // page read
                 }
 
@@ -337,8 +307,7 @@ void console() {
 
             } 
             
-           // else if(in == 0x8 && str_idx>0)
-           //     str_idx -=1;
+
 
         }
 
